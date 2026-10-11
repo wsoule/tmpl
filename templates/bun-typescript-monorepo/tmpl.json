@@ -1,0 +1,1 @@
+{ "description": "TypeScript monorepo on Bun workspaces with husky, oxlint/oxfmt and tsdown" }

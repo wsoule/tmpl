@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/template",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown --clean",
+    "test": "bun test",
+    "tsc": "tsgo --noEmit --pretty"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}
