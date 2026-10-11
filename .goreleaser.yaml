@@ -1,0 +1,53 @@
+version: 2
+
+project_name: tmpl
+
+builds:
+  - main: ./cmd/tmpl
+    binary: tmpl
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+homebrew_casks:
+  - name: tmpl
+    binaries: [tmpl]
+    directory: Casks
+    repository:
+      owner: wsoule
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/wsoule/tmpl
+    description: Start new projects from templates with one command
+    license: MIT
+    hooks:
+      post:
+        # The binary isn't notarized; clear the quarantine flag so macOS runs it.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tmpl"]
+          end
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+
+release:
+  github:
+    owner: wsoule
+    name: tmpl
+  prerelease: auto

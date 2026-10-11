@@ -22,12 +22,12 @@ func TestValidate(t *testing.T) {
 
 func TestSuggest(t *testing.T) {
 	cases := map[string]string{
-		"Dogear":     "dogear",
-		"My App":     "my-app",
-		"--weird--":  "weird--",
+		"Dogear":    "dogear",
+		"My App":    "my-app",
+		"--weird--": "weird--",
 		"émoji✨app": "moji-app",
-		"!!!":        "app",
-		"":           "app",
+		"!!!":       "app",
+		"":          "app",
 	}
 	for in, want := range cases {
 		got := Suggest(in)
