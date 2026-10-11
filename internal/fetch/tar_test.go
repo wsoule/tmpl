@@ -174,3 +174,24 @@ func TestExtractSkipsEntriesBeneathCaseVariantSymlink(t *testing.T) {
 		t.Error("kept a/b/c beneath case-variant symlink A/b")
 	}
 }
+
+// t's target looks like "z" on paper, but d/s1 really points at e, so
+// d/s1/../../z resolves one level above the template. ".." may only lead a
+// link target, never follow a name that could itself be a link.
+func TestExtractRejectsLinkTargetThroughLink(t *testing.T) {
+	buf := tarball(t, []entry{
+		{name: "repo-sha/e/keep", body: "k"},
+		{name: "repo-sha/d/s1", typ: tar.TypeSymlink, link: "../e"},
+		{name: "repo-sha/t", typ: tar.TypeSymlink, link: "d/s1/../../z"},
+	})
+	res, err := ExtractTarGz(buf, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := paths(res)["t"]; ok {
+		t.Error("kept link t whose target passes through link d/s1")
+	}
+	if _, ok := paths(res)["d/s1"]; !ok {
+		t.Error("dropped d/s1, which only uses a leading ..")
+	}
+}

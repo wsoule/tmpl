@@ -45,3 +45,19 @@ func TestLinkStaysInside(t *testing.T) {
 		}
 	}
 }
+
+func TestLinkStaysInsideRejectsDotDotAfterName(t *testing.T) {
+	for _, target := range []string{"d/s1/../../z", "a/../b", "./x/../y"} {
+		if linkStaysInside("link", target) {
+			t.Errorf("linkStaysInside(link, %q) = true", target)
+		}
+	}
+	for _, target := range []string{"x", "./x", "x/y"} {
+		if !linkStaysInside("link", target) {
+			t.Errorf("linkStaysInside(link, %q) = false", target)
+		}
+	}
+	if !linkStaysInside("a/b/link", "../../x/y") {
+		t.Error("leading .. rejected")
+	}
+}

@@ -66,9 +66,28 @@ func linkAncestor(rel string, links map[string]bool) string {
 
 // linkStaysInside reports whether a symlink stored at rel and pointing at
 // target resolves to somewhere inside the template root.
+//
+// ".." may only lead the target. After a name, ".." would climb out of
+// whatever that name really is on disk, which may itself be a link
+// ("d/s1/../../z" with d/s1 -> ../e lands above the root), and no lexical
+// check can see that. With leading ".." only, a link climbs through real
+// directories (entries beneath links are skipped) and then descends through
+// links that were themselves checked, so it always resolves inside.
 func linkStaysInside(rel, target string) bool {
 	if path.IsAbs(target) {
 		return false
+	}
+	named := false
+	for _, seg := range strings.Split(target, "/") {
+		switch seg {
+		case "", ".":
+		case "..":
+			if named {
+				return false
+			}
+		default:
+			named = true
+		}
 	}
 	_, ok := cleanRel(path.Join(path.Dir(rel), target))
 	return ok
