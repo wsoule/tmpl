@@ -39,9 +39,13 @@ func Files(dest string, files []fetch.File, force bool) (Report, error) {
 	defer root.Close()
 
 	var rep Report
+	links := map[string]bool{} // symlinks written in this run
 	for _, f := range files {
 		if f.Path == ManifestFile {
 			continue
+		}
+		if link := fetch.LinkAncestor(f.Path, links); link != "" {
+			return rep, fmt.Errorf("write %s: path is inside symlink %s", f.Path, link)
 		}
 		name := filepath.FromSlash(f.Path)
 		_, err := root.Lstat(name)
@@ -66,6 +70,7 @@ func Files(dest string, files []fetch.File, force bool) (Report, error) {
 			if err := root.Symlink(filepath.FromSlash(f.LinkTarget), name); err != nil {
 				return rep, fmt.Errorf("write %s: %w", f.Path, err)
 			}
+			links[f.Path] = true
 		} else {
 			mode := f.Mode
 			if mode == 0 {

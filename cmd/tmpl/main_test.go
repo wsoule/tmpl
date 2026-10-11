@@ -35,15 +35,17 @@ func fixture(t *testing.T) string {
 	return root
 }
 
-// nonTTY returns a regular file to use as stdin, so run() is non-interactive.
+// nonTTY returns the read end of an already-closed pipe to use as stdin, so
+// run() takes the non-interactive path (a pipe is never a terminal).
 func nonTTY(t *testing.T) *os.File {
 	t.Helper()
-	f, err := os.Open(os.DevNull)
+	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { f.Close() })
-	return f
+	w.Close()
+	t.Cleanup(func() { r.Close() })
+	return r
 }
 
 func runTmpl(t *testing.T, argv ...string) (int, string, string) {
@@ -138,5 +140,26 @@ func TestUsageAndVersion(t *testing.T) {
 	}
 	if code, out, _ := runTmpl(t, "version"); code != 0 || !strings.Contains(out, "tmpl dev") {
 		t.Errorf("version: exit %d %q", code, out)
+	}
+}
+
+// /dev/null is a character device but not a terminal; cron, nohup and many
+// CI/agent harnesses hand it to processes as stdin.
+func TestDevNullStdinNeverPrompts(t *testing.T) {
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devnull.Close()
+	if isTerminal(devnull) {
+		t.Error("isTerminal(/dev/null) = true")
+	}
+	var out, errb bytes.Buffer
+	code := run([]string{fixture(t), filepath.Join(t.TempDir(), "app")}, devnull, &out, &errb)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if strings.Contains(out.String(), "Project name") || strings.Contains(out.String(), "[Y/n]") {
+		t.Errorf("prompted with /dev/null stdin: %q", out.String())
 	}
 }

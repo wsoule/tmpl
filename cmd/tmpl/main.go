@@ -209,8 +209,14 @@ func runList(stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// isTerminal reports whether f is an interactive terminal (a character device).
+// isTerminal reports whether f is an interactive terminal: a character
+// device other than /dev/null, which cron, nohup and CI harnesses often use
+// as stdin.
 func isTerminal(f *os.File) bool {
 	fi, err := f.Stat()
-	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	null, err := os.Stat(os.DevNull)
+	return err != nil || !os.SameFile(fi, null)
 }

@@ -133,3 +133,29 @@ func TestExtractEmptySubdirIsNotFound(t *testing.T) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
+
+// Each link passes the lexical check alone, but a/b really points at x, so
+// a/b/c would land at x/c -> ../../y, outside the template. Entries beneath
+// an earlier symlink must be skipped.
+func TestExtractSkipsEntriesBeneathSymlinks(t *testing.T) {
+	buf := tarball(t, []entry{
+		{name: "repo-sha/x/keep", body: "k"},
+		{name: "repo-sha/a/b", typ: tar.TypeSymlink, link: "../x"},
+		{name: "repo-sha/a/b/c", typ: tar.TypeSymlink, link: "../../y"},
+		{name: "repo-sha/a/b/file.txt", body: "through the link"},
+	})
+	res, err := ExtractTarGz(buf, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := paths(res)
+	if _, ok := got["a/b/c"]; ok {
+		t.Error("kept a/b/c beneath symlink a/b")
+	}
+	if _, ok := got["a/b/file.txt"]; ok {
+		t.Error("kept a/b/file.txt beneath symlink a/b")
+	}
+	if len(got) != 2 || len(res.Warnings) != 2 {
+		t.Errorf("files=%v warnings=%v", got, res.Warnings)
+	}
+}

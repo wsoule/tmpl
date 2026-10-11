@@ -138,3 +138,19 @@ func TestFilesRefusesExistingSymlinkEscape(t *testing.T) {
 		t.Fatal("file was written outside dest")
 	}
 }
+
+// End to end: a crafted tarball must not leave any link in dest that
+// resolves outside it.
+func TestNoLinkInDestResolvesOutside(t *testing.T) {
+	parent := t.TempDir()
+	dest := filepath.Join(parent, "app")
+	files := []fetch.File{
+		{Path: "x/keep", Mode: 0o644, Data: []byte("k")},
+		{Path: "a/b", Mode: 0o777, LinkTarget: "../x"},
+		{Path: "a/b/c", Mode: 0o777, LinkTarget: "../../y"},
+	}
+	_, _ = Files(dest, files, false)
+	if target, err := os.Readlink(filepath.Join(dest, "x", "c")); err == nil {
+		t.Fatalf("link x/c -> %s was created outside the template's intent", target)
+	}
+}

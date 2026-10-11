@@ -26,6 +26,7 @@ func ExtractTarGz(r io.Reader, subdir string) (Result, error) {
 	}
 
 	var res Result
+	links := map[string]bool{}
 	tr := tar.NewReader(gz)
 	for {
 		h, err := tr.Next()
@@ -63,6 +64,10 @@ func ExtractTarGz(r io.Reader, subdir string) (Result, error) {
 		if Ignored(rel) {
 			continue
 		}
+		if link := LinkAncestor(rel, links); link != "" {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("skipped %s (inside symlink %s)", rel, link))
+			continue
+		}
 		switch h.Typeflag {
 		case tar.TypeReg:
 			data, err := io.ReadAll(tr)
@@ -75,6 +80,7 @@ func ExtractTarGz(r io.Reader, subdir string) (Result, error) {
 				res.Warnings = append(res.Warnings, fmt.Sprintf("skipped symlink %s -> %s (points outside the template)", rel, h.Linkname))
 				continue
 			}
+			links[rel] = true
 			res.Files = append(res.Files, File{Path: rel, Mode: 0o777, LinkTarget: h.Linkname})
 		default:
 			res.Warnings = append(res.Warnings, fmt.Sprintf("skipped special file %s", rel))

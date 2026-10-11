@@ -50,6 +50,18 @@ func cleanRel(p string) (string, bool) {
 	return c, true
 }
 
+// LinkAncestor returns the symlink in links that is an ancestor of rel, or "".
+// A path under a symlink would be written wherever that link points, which a
+// lexical check on the path cannot see, so such entries are never kept.
+func LinkAncestor(rel string, links map[string]bool) string {
+	for i := 0; i < len(rel); i++ {
+		if rel[i] == '/' && links[rel[:i]] {
+			return rel[:i]
+		}
+	}
+	return ""
+}
+
 // linkStaysInside reports whether a symlink stored at rel and pointing at
 // target resolves to somewhere inside the template root.
 func linkStaysInside(rel, target string) bool {
