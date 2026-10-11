@@ -159,3 +159,18 @@ func TestExtractSkipsEntriesBeneathSymlinks(t *testing.T) {
 		t.Errorf("files=%v warnings=%v", got, res.Warnings)
 	}
 }
+
+func TestExtractSkipsEntriesBeneathCaseVariantSymlink(t *testing.T) {
+	buf := tarball(t, []entry{
+		{name: "repo-sha/x/keep", body: "k"},
+		{name: "repo-sha/A/b", typ: tar.TypeSymlink, link: "../x"},
+		{name: "repo-sha/a/b/c", typ: tar.TypeSymlink, link: "../../y"},
+	})
+	res, err := ExtractTarGz(buf, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := paths(res)["a/b/c"]; ok {
+		t.Error("kept a/b/c beneath case-variant symlink A/b")
+	}
+}

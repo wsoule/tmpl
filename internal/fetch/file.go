@@ -50,12 +50,14 @@ func cleanRel(p string) (string, bool) {
 	return c, true
 }
 
-// LinkAncestor returns the symlink in links that is an ancestor of rel, or "".
+// linkAncestor returns the symlink in links that is an ancestor of rel, or "".
 // A path under a symlink would be written wherever that link points, which a
 // lexical check on the path cannot see, so such entries are never kept.
-func LinkAncestor(rel string, links map[string]bool) string {
+// Keys in links are lowercased, because macOS filesystems treat "A/b" and
+// "a/b" as the same path; the writer re-checks against the real filesystem.
+func linkAncestor(rel string, links map[string]bool) string {
 	for i := 0; i < len(rel); i++ {
-		if rel[i] == '/' && links[rel[:i]] {
+		if rel[i] == '/' && links[strings.ToLower(rel[:i])] {
 			return rel[:i]
 		}
 	}

@@ -154,3 +154,19 @@ func TestNoLinkInDestResolvesOutside(t *testing.T) {
 		t.Fatalf("link x/c -> %s was created outside the template's intent", target)
 	}
 }
+
+// On case-insensitive filesystems (macOS default) "a/b" is the link "A/b",
+// so a name-only check misses that a/b/c is being created through it.
+func TestCaseVariantOfLinkCannotEscape(t *testing.T) {
+	parent := t.TempDir()
+	dest := filepath.Join(parent, "app")
+	files := []fetch.File{
+		{Path: "x/keep", Mode: 0o644, Data: []byte("k")},
+		{Path: "A/b", Mode: 0o777, LinkTarget: "../x"},
+		{Path: "a/b/c", Mode: 0o777, LinkTarget: "../../y"},
+	}
+	_, _ = Files(dest, files, false)
+	if target, err := os.Readlink(filepath.Join(dest, "x", "c")); err == nil {
+		t.Fatalf("link x/c -> %s was created through case-variant symlink A/b", target)
+	}
+}

@@ -39,16 +39,20 @@ func Files(dest string, files []fetch.File, force bool) (Report, error) {
 	defer root.Close()
 
 	var rep Report
-	links := map[string]bool{} // symlinks written in this run
+	var links []fs.FileInfo // symlinks written in this run
 	for _, f := range files {
 		if f.Path == ManifestFile {
 			continue
 		}
-		if link := fetch.LinkAncestor(f.Path, links); link != "" {
+		link, err := createdLinkAncestor(root, f.Path, links)
+		if err != nil {
+			return rep, fmt.Errorf("write %s: %w", f.Path, err)
+		}
+		if link != "" {
 			return rep, fmt.Errorf("write %s: path is inside symlink %s", f.Path, link)
 		}
 		name := filepath.FromSlash(f.Path)
-		_, err := root.Lstat(name)
+		_, err = root.Lstat(name)
 		switch {
 		case err == nil:
 			if !force {
@@ -70,7 +74,11 @@ func Files(dest string, files []fetch.File, force bool) (Report, error) {
 			if err := root.Symlink(filepath.FromSlash(f.LinkTarget), name); err != nil {
 				return rep, fmt.Errorf("write %s: %w", f.Path, err)
 			}
-			links[f.Path] = true
+			fi, err := root.Lstat(name)
+			if err != nil {
+				return rep, fmt.Errorf("write %s: %w", f.Path, err)
+			}
+			links = append(links, fi)
 		} else {
 			mode := f.Mode
 			if mode == 0 {
@@ -87,4 +95,37 @@ func Files(dest string, files []fetch.File, force bool) (Report, error) {
 		rep.Written = append(rep.Written, f.Path)
 	}
 	return rep, nil
+}
+
+// createdLinkAncestor returns the parent of rel that is one of the symlinks
+// written earlier in this run, or "". It asks the filesystem rather than
+// comparing names, so case-insensitive or normalizing filesystems (where
+// "a/b" may be the link "A/b") can't route a file through such a link.
+// os.Root stops writes that escape dest, but not the creation of a link whose
+// target escapes, so nothing is ever placed beneath a template's own link.
+func createdLinkAncestor(root *os.Root, rel string, links []fs.FileInfo) (string, error) {
+	if len(links) == 0 {
+		return "", nil
+	}
+	for i := 0; i < len(rel); i++ {
+		if rel[i] != '/' {
+			continue
+		}
+		fi, err := root.Lstat(filepath.FromSlash(rel[:i]))
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil // deeper parents can't exist either
+		}
+		if err != nil {
+			return "", err
+		}
+		if fi.Mode()&fs.ModeSymlink == 0 {
+			continue
+		}
+		for _, l := range links {
+			if os.SameFile(fi, l) {
+				return rel[:i], nil
+			}
+		}
+	}
+	return "", nil
 }
