@@ -23,6 +23,9 @@ tmpl version
 | A GitHub repo or folder | `tmpl alice/templates/web@v2` |
 | A local directory | `tmpl ./my-template`, `tmpl ~/templates/web` |
 
+Local folders need a path prefix (`./`, `~/` or `/`). A bare word like `web`
+always means a template name, even if there's a `web` folder where you run it.
+
 Flags: `-n/--name` sets the project name, `-f/--force` overwrites existing
 files, `--no-setup` skips the Claude handoff, and `-y/--yes` never prompts.
 

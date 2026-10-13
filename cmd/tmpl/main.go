@@ -102,6 +102,9 @@ func runCopy(a args, stdin *os.File, stdout, stderr io.Writer) int {
 	res, err := fetch.Fetch(ctx, src, gh)
 	if errors.Is(err, fetch.ErrNotFound) {
 		fmt.Fprintf(stderr, "tmpl: template %q not found\n", a.source)
+		if hint := localHint(a.source, cwd); hint != "" {
+			fmt.Fprintf(stderr, "tmpl: %s\n", hint)
+		}
 		if src.Bare {
 			fmt.Fprintln(stderr, "\navailable templates:")
 			runList(stderr, io.Discard)
@@ -137,9 +140,9 @@ func runCopy(a args, stdin *os.File, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "tmpl: %v\n", err)
 		return exitFail
 	}
-	fmt.Fprintf(stdout, "Created %s from %s (%d files)\n", a.dest, a.source, len(rep.Written))
+	fmt.Fprintf(stdout, "Created %s from %s (%s)\n", a.dest, a.source, files(len(rep.Written)))
 	if len(rep.Kept) > 0 {
-		fmt.Fprintf(stdout, "Kept %d existing files (use --force to overwrite):\n", len(rep.Kept))
+		fmt.Fprintf(stdout, "Kept %s already in %s (use --force to overwrite):\n", files(len(rep.Kept)), a.dest)
 		for _, p := range rep.Kept {
 			fmt.Fprintf(stdout, "  %s\n", p)
 		}
@@ -157,6 +160,27 @@ func runCopy(a args, stdin *os.File, stdout, stderr io.Writer) int {
 		}
 	}
 	return exitOK
+}
+
+// files formats a file count for messages: "1 file", "3 files".
+func files(n int) string {
+	if n == 1 {
+		return "1 file"
+	}
+	return fmt.Sprintf("%d files", n)
+}
+
+// localHint helps when a remote template isn't found but a folder of that name
+// is in the current directory. Local folders need a "./" prefix (so they never
+// shadow template names), and someone typing "tmpl web" may have meant ./web.
+func localHint(raw, cwd string) string {
+	if strings.HasPrefix(raw, ".") || strings.HasPrefix(raw, "~") || filepath.IsAbs(raw) {
+		return ""
+	}
+	if fi, err := os.Stat(filepath.Join(cwd, raw)); err != nil || !fi.IsDir() {
+		return ""
+	}
+	return fmt.Sprintf("did you mean the local folder %q?", "./"+raw)
 }
 
 // projectName decides what replaces {{name}}: the --name flag, else the

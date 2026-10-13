@@ -163,3 +163,26 @@ func TestDevNullStdinNeverPrompts(t *testing.T) {
 		t.Errorf("prompted with /dev/null stdin: %q", out.String())
 	}
 }
+
+func TestLocalHintSuggestsDotSlashForMatchingFolder(t *testing.T) {
+	cwd := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(cwd, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := localHint("web", cwd), `did you mean the local folder "./web"?`; got != want {
+		t.Errorf("localHint(web) = %q, want %q", got, want)
+	}
+	for _, raw := range []string{"missing", "./web", "~/web", "/web"} {
+		if got := localHint(raw, cwd); got != "" {
+			t.Errorf("localHint(%q) = %q, want empty", raw, got)
+		}
+	}
+}
+
+func TestFilesCountsPluralize(t *testing.T) {
+	for n, want := range map[int]string{0: "0 files", 1: "1 file", 2: "2 files"} {
+		if got := files(n); got != want {
+			t.Errorf("files(%d) = %q, want %q", n, got, want)
+		}
+	}
+}

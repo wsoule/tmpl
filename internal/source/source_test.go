@@ -9,8 +9,11 @@ import (
 
 func TestParse(t *testing.T) {
 	cwd := t.TempDir()
-	if err := os.Mkdir(filepath.Join(cwd, "localdir"), 0o755); err != nil {
-		t.Fatal(err)
+	// Local folders that look like template names must not shadow them.
+	for _, d := range []string{"pierre", "alice/templates"} {
+		if err := os.MkdirAll(filepath.Join(cwd, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	o := Options{Cwd: cwd, Home: "/home/me", DefaultRepo: "wsoule/tmpl"}
 
@@ -29,7 +32,7 @@ func TestParse(t *testing.T) {
 		{"../tpl", Source{Kind: Local, Path: filepath.Join(filepath.Dir(cwd), "tpl")}},
 		{"~/tpl", Source{Kind: Local, Path: "/home/me/tpl"}},
 		{"/abs/tpl", Source{Kind: Local, Path: "/abs/tpl"}},
-		{"localdir", Source{Kind: Local, Path: filepath.Join(cwd, "localdir")}},
+		{"./pierre", Source{Kind: Local, Path: filepath.Join(cwd, "pierre")}},
 	}
 	for _, tt := range tests {
 		got, err := Parse(tt.in, o)

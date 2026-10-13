@@ -48,8 +48,10 @@ func RepoFromEnv() string {
 	return DefaultRepo
 }
 
-// Parse resolves a source string. Order: local path, then GitHub path
-// (anything with a "/"), then bare name inside o.DefaultRepo's templates/.
+// Parse resolves a source string. Order: local path (only when it starts with
+// ".", "~" or "/"), then GitHub path (anything with a "/"), then bare name
+// inside o.DefaultRepo's templates/. A folder in the current directory never
+// shadows a template name; type "./name" to use it.
 func Parse(raw string, o Options) (Source, error) {
 	s := strings.TrimSpace(raw)
 	if s == "" {
@@ -86,8 +88,9 @@ func Templates(defaultRepo string) (Source, error) {
 	return src, nil
 }
 
-// localPath reports whether s names a local directory, returning its absolute path.
-// Explicit path prefixes always count; a bare word counts only if that directory exists.
+// localPath reports whether s is written as a local path ("./x", "../x",
+// "~/x", "/x"), returning its absolute path. It never checks the disk, so the
+// same command means the same thing in every directory.
 func localPath(s string, o Options) (string, bool) {
 	switch {
 	case s == "~" || strings.HasPrefix(s, "~/"):
@@ -96,10 +99,6 @@ func localPath(s string, o Options) (string, bool) {
 		return filepath.Clean(s), true
 	case s == "." || s == ".." || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../"):
 		return filepath.Join(o.Cwd, s), true
-	}
-	p := filepath.Join(o.Cwd, s)
-	if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-		return p, true
 	}
 	return "", false
 }
